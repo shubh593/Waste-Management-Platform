@@ -49,8 +49,10 @@ export async function createPickupRequest(formData: FormData) {
   // Attempt to save in Firestore if available; always persist to resilient store
   try {
     const db = getFirestoreDb();
-    const newDocRef = db.collection(COLLECTION_NAME).doc(id);
-    await newDocRef.set(requestPayload);
+    if (db) {
+      const newDocRef = db.collection(COLLECTION_NAME).doc(id);
+      await newDocRef.set(requestPayload);
+    }
   } catch {
     // Firestore not connected or billing disabled; saved locally
   }
@@ -66,14 +68,16 @@ export async function getRequestByTrackingCode(
 
   try {
     const db = getFirestoreDb();
-    const snapshot = await db
-      .collection(COLLECTION_NAME)
-      .where("trackingCode", "==", normalized)
-      .limit(1)
-      .get();
+    if (db) {
+      const snapshot = await db
+        .collection(COLLECTION_NAME)
+        .where("trackingCode", "==", normalized)
+        .limit(1)
+        .get();
 
-    if (!snapshot.empty) {
-      return snapshot.docs[0].data() as CollectionRequest;
+      if (!snapshot.empty) {
+        return snapshot.docs[0].data() as CollectionRequest;
+      }
     }
   } catch {
     // Fallback to local storage
@@ -85,12 +89,14 @@ export async function getRequestByTrackingCode(
 export async function getAllRequests(): Promise<CollectionRequest[]> {
   try {
     const db = getFirestoreDb();
-    const snapshot = await db
-      .collection(COLLECTION_NAME)
-      .orderBy("createdAt", "desc")
-      .get();
-    if (!snapshot.empty) {
-      return snapshot.docs.map((doc) => doc.data() as CollectionRequest);
+    if (db) {
+      const snapshot = await db
+        .collection(COLLECTION_NAME)
+        .orderBy("createdAt", "desc")
+        .get();
+      if (!snapshot.empty) {
+        return snapshot.docs.map((doc) => doc.data() as CollectionRequest);
+      }
     }
   } catch {
     // Fallback to local storage
@@ -110,14 +116,16 @@ export async function updateRequestStatus(
   // Try updating Firestore
   try {
     const db = getFirestoreDb();
-    const docRef = db.collection(COLLECTION_NAME).doc(id);
-    const updateData: Partial<CollectionRequest> = {
-      status,
-      updatedAt: timestamp,
-    };
-    if (assignedCrew !== undefined) updateData.assignedCrew = assignedCrew;
-    if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
-    await docRef.update(updateData);
+    if (db) {
+      const docRef = db.collection(COLLECTION_NAME).doc(id);
+      const updateData: Partial<CollectionRequest> = {
+        status,
+        updatedAt: timestamp,
+      };
+      if (assignedCrew !== undefined) updateData.assignedCrew = assignedCrew;
+      if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
+      await docRef.update(updateData);
+    }
   } catch {
     // Fallback update
   }
@@ -135,4 +143,12 @@ export async function updateRequestStatus(
 
   revalidatePath("/admin");
   return { success: true };
+}
+
+export async function handleAdminUpdate(formData: FormData) {
+  const id = formData.get("id") as string;
+  const status = formData.get("status") as RequestStatus;
+  const crew = (formData.get("crew") as string) || undefined;
+  if (!id) return;
+  await updateRequestStatus(id, status, crew);
 }

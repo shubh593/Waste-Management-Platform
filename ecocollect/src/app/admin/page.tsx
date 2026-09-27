@@ -1,19 +1,11 @@
-import { getAllRequests, updateRequestStatus } from "@/app/actions";
-import { RequestStatus } from "@/lib/types";
+import { getAllRequests, handleAdminUpdate } from "@/app/actions";
 import {
   Package,
   Truck,
   CheckCircle,
   Clock,
   Search,
-  Filter,
-  RefreshCw,
   Recycle,
-  User,
-  MapPin,
-  Calendar,
-  AlertCircle,
-  ShieldCheck,
   ChevronRight,
 } from "lucide-react";
 
@@ -292,15 +284,8 @@ export default async function AdminPage({
                     </td>
 
                     <td className="p-3.5 text-right">
-                      <form
-                        action={async (formData: FormData) => {
-                          "use server";
-                          const nextStatus = formData.get("status") as RequestStatus;
-                          const crew = (formData.get("crew") as string) || item.assignedCrew;
-                          await updateRequestStatus(item.id, nextStatus, crew);
-                        }}
-                        className="inline-flex items-center gap-1.5 justify-end"
-                      >
+                      <form action={handleAdminUpdate} className="inline-flex items-center gap-1.5 justify-end">
+                        <input type="hidden" name="id" value={item.id} />
                         <select
                           name="status"
                           defaultValue={item.status}
